@@ -25,6 +25,7 @@ namespace Biblioteca.Models
                 emprestimo.LivroId = e.LivroId;
                 emprestimo.DataEmprestimo = e.DataEmprestimo;
                 emprestimo.DataDevolucao = e.DataDevolucao;
+                emprestimo.Devolvido = e.Devolvido;
 
                 bc.SaveChanges();
             }
@@ -34,7 +35,41 @@ namespace Biblioteca.Models
         {
             using(BibliotecaContext bc = new BibliotecaContext())
             {
-                return bc.Emprestimos.Include(e => e.Livro).ToList();
+                IQueryable<Emprestimo> consulta;
+                
+                if(filtro!=null)
+                {
+                    switch(filtro.TipoFiltro)
+                    {
+                        case "Usuario":
+                            consulta = bc.Emprestimos.Where(e => e.NomeUsuario.Contains(filtro.Filtro));
+                        break;
+
+                        case "Livro":
+                            List<Livro> LivrosFiltrados = bc.Livros.Where(l => l.Titulo.Contains(filtro.Filtro)).ToList();
+                            List<int>LivrosIds = new List<int>();
+                            for (int i = 0; i < LivrosFiltrados.Count; i++)
+                            {LivrosIds.Add(LivrosFiltrados[i].Id);}
+
+                            consulta = bc.Emprestimos.Where(e => LivrosIds.Contains(e.LivroId));
+                            var debug = consulta.ToList();
+                        break;
+
+                        default:
+                            consulta = bc.Emprestimos;
+                        break;
+                    }
+                }
+                else
+                {
+                    consulta = bc.Emprestimos;
+                }
+                List<Emprestimo>ListaConsulta = consulta.OrderByDescending(e => e.DataDevolucao).ToList();
+                for (int i = 0; i < ListaConsulta.Count; i++)
+                {
+                    ListaConsulta[i].Livro = bc.Livros.Find(ListaConsulta[i].LivroId);
+                }
+                return bc.Emprestimos.Include(e => e.Livro).ToList();        
             }
         }
 
